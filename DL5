@@ -1,0 +1,77 @@
+import numpy as np
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, Dense, Flatten
+
+# Sample corpus
+corpus = [
+    "I love natural language processing",
+    "Natural language processing is fascinating",
+    "I enjoy learning about machine learning and deep learning",
+    "Language is a beautiful tool for communication",
+    "Machine learning algorithms are powerful",
+    "Deep learning is a subset of machine learning",
+    "Data science combines statistics and computer science",
+    "I find NLP applications exciting",
+    "Artificial intelligence is transforming industries",
+    "Text processing involves a variety of techniques",
+    "Word embeddings capture semantic meaning",
+    "The field of AI is rapidly evolving",
+    "Chatbots use NLP to understand user queries",
+    "Sentiment analysis helps in understanding opinions",
+    "Speech recognition technology is improving",
+    "I often work with TensorFlow and Keras",
+    "Data visualization aids in data interpretation",
+    "Feature extraction is crucial in machine learning",
+    "Training data is essential for model performance",
+    "I read research papers on the latest ML techniques",
+    "Collaborative filtering is used in recommendation systems"
+]
+
+# Data Preparation
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(corpus)
+total_words = len(tokenizer.word_index) + 1
+
+# Generate Training Data (CBOW pairs)
+def generate_cbow_data(corpus, window_size=2):
+    input_words, target_words = [], []
+    for sentence in corpus:
+        tokenized = tokenizer.texts_to_sequences([sentence])[0]
+        for i in range(window_size, len(tokenized) - window_size):
+            context = [tokenized[j] for j in range(i - window_size, i + window_size + 1) if j != i]
+            input_words.append(context)
+            target_words.append(tokenized[i])
+    return np.array(input_words), np.array(target_words)
+
+X, y = generate_cbow_data(corpus)
+
+# Train the Model
+model = Sequential([
+    Embedding(input_dim=total_words, output_dim=10, input_length=X.shape[1]),
+    Flatten(),
+    Dense(total_words, activation='softmax')
+])
+
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.fit(X, y, epochs=100, verbose=0)
+
+# Predict the target word from context
+def predict_word(context, window_size=2):
+    context_tokens = tokenizer.texts_to_sequences([context])[0]
+    context_tokens = [0] * (window_size * 2 - len(context_tokens)) + context_tokens if len(context_tokens) < window_size * 2 else context_tokens[-(window_size * 2):]
+    context_seq = np.array(context_tokens).reshape(1, -1)
+
+    predicted_index = np.argmax(model.predict(context_seq))
+    return tokenizer.index_word[predicted_index]
+
+# Test case
+test_context = "I love natural"
+predicted_word = predict_word(test_context)
+print(f"Predicted word for context '{test_context}': '{predicted_word}'")
+
+
+# Test case
+test_context = "I love natural language processing"
+predicted_word = predict_word(test_context)
+print(f"Predicted word for context '{test_context}': '{predicted_word}'")
